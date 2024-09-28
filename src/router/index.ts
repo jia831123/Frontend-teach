@@ -29,6 +29,17 @@ const router = createRouter({
           component: () => import('@/views/Emily/index2.vue')
         }
       ]
+    },
+    {
+      path: '/Sandy',
+      name: 'Sandy',
+      children: [
+        {
+          path: '/Sandy',
+          name: 'SandyIndex',
+          component: () => import('@/views/Sandy/index.vue')
+        }
+      ]
     }
   ]
 })
