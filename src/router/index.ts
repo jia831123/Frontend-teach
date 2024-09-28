@@ -18,6 +18,17 @@ const router = createRouter({
           component: () => import('@/views/William/index.vue')
         }
       ]
+    },
+    {
+      path: '/Emily',
+      name: 'Emily',
+      children: [
+        {
+          path: '/Emily',
+          name: 'EmilyIndex2',
+          component: () => import('@/views/Emily/index2.vue')
+        }
+      ]
     }
   ]
 })
