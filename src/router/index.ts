@@ -11,11 +11,17 @@ const router = createRouter({
     {
       path: '/william',
       name: 'william',
+      redirect: { name: 'williamIndex' },
       children: [
         {
-          path: '/william',
+          path: '',
           name: 'williamIndex',
           component: () => import('@/views/William/index.vue')
+        },
+        {
+          path: 'air-quality',
+          name: 'williamAirQuality',
+          component: () => import('@/views/William/airQuality/index.vue')
         }
       ]
     },
