@@ -12,25 +12,29 @@
       </div>
     </div>
     <div class="content">
-      <div >
+      <div v-if="loading" class="loading">
+        <div class="spinner"></div>
+        載入中...
+      </div>
+      <div v-else-if="error" class="error">發生錯誤：{{ error }}</div>
+      <div v-else>
         <div class="forecast-summary">
-          <p>共 {{ 0 }} 個地區，平均 AQI: {{ 0 }}</p>
+          <p>共 {{ filteredForecasts.length }} 個地區，平均 AQI: {{ averageAQI }}</p>
         </div>
         <transition-group name="forecast-list" tag="div" class="forecast-list">
-          <div  class="forecast-card">
-            <h2 class="area">{{ '台北' }}</h2>
-            <div  class="api good">
-              AQI: {{123}}
-              <span class="aqi-label">{{ 123 }}</span>
+          <div v-for="forecast in filteredForecasts" :key="forecast.publishtime" class="forecast-card">
+            <h2 class="area">{{ forecast.area }}</h2>
+            <div class="aqi" :class="getAQIClass(Number(forecast.aqi))">
+              AQI: {{ forecast.aqi }}
+              <span class="aqi-label">{{ getAQILabel(Number(forecast.aqi)) }}</span>
             </div>
             <div class="details">
-              <p><strong>主要污染物：</strong> {{  '無' }}</p>
-              <p><strong>狀態：</strong> {{'無' }}</p>
-              <p><strong>發布時間：</strong> {{ '無' }}</p>
+              <p><strong>主要污染物：</strong> {{ forecast.minorpollutant || '無' }}</p>
+              <p><strong>發布時間：</strong> {{ formatDate(forecast.publishtime) }}</p>
             </div>
             <div class="health-effects">
               <h3>健康影響</h3>
-              <p>{{ '空氣品質令人滿意，基本無空氣污染。' }}</p>
+              <p>{{ getHealthEffects(Number(forecast.aqi)) }}</p>
             </div>
           </div>
         </transition-group>
@@ -38,10 +42,123 @@
     </div>
   </div>
 </template>
+<script lang="ts">
+export type Response = {
+  fields: Array<{
+    id: string
+    type: string
+    info: {
+      label: string
+    }
+  }>
+  resource_id: string
+  __extras: {
+    api_key: string
+  }
+  include_total: boolean
+  total: string
+  resource_format: string
+  limit: string
+  offset: string
+  _links: {
+    start: string
+    next: string
+  }
+  records: Array<{
+    content: string
+    publishtime: string
+    area: string
+    majorpollutant: string
+    forecastdate: string
+    aqi: string
+    minorpollutant: string
+    minorpollutantaqi: string
+  }>}
+</script>
 
 <script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
 
+const forecasts = ref<Response['records']>([])
+const filteredForecasts = ref<Response['records']>([])
+const loading = ref(true)
+const error = ref(null)
+const searchQuery = ref('')
+const sortBy = ref('aqi')
 
+const fetchForecasts = async () => {
+  try {
+    const response = await fetch('https://us-central1-delta-vial-435710-e5.cloudfunctions.net/function-1?limit=100')
+    const data = await response.json()
+    forecasts.value = data.records
+    filteredForecasts.value = [...forecasts.value]
+    sortForecasts()
+  } catch (err:any) {
+    error.value = err['message']
+  } finally {
+    loading.value = false
+  }
+}
+
+const getAQIClass = (aqi: number) => {
+  if (aqi <= 50) return 'good'
+  if (aqi <= 100) return 'moderate'
+  if (aqi <= 150) return 'unhealthy-sensitive'
+  if (aqi <= 200) return 'unhealthy'
+  if (aqi <= 300) return 'very-unhealthy'
+  return 'hazardous'
+}
+
+const getAQILabel = (aqi: number) => {
+  if (aqi <= 50) return '良好'
+  if (aqi <= 100) return '中等'
+  if (aqi <= 150) return '對敏感族群不健康'
+  if (aqi <= 200) return '不健康'
+  if (aqi <= 300) return '非常不健康'
+  return '危險'
+}
+
+const getHealthEffects = (aqi: number) => {
+  if (aqi <= 50) return '空氣品質令人滿意，基本無空氣污染。'
+  if (aqi <= 100) return '空氣品質可接受，但某些污染物可能對極少數異常敏感人群健康有較弱影響。'
+  if (aqi <= 150) return '易感人群症狀有輕度加劇，健康人群可能出現刺激症狀。'
+  if (aqi <= 200) return '健康人群可能出現症狀，易感人群症狀加劇。'
+  if (aqi <= 300) return '健康人群運動耐受力降低，有明顯強烈症狀，提前出現某些疾病。'
+  return '健康人群可能感到明顯不適，易感人群可能出現嚴重症狀，建議避免戶外活動。'
+}
+
+const formatDate = (dateString: string) => {
+  const date = new Date(dateString)
+  return date.toLocaleString('zh-TW', { 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric', 
+    hour: '2-digit', 
+    minute: '2-digit' 
+  })
+}
+
+const filterForecasts = () => {
+  filteredForecasts.value = forecasts.value.filter(forecast => 
+    forecast.area.toLowerCase().includes(searchQuery.value.toLowerCase())
+  )
+  sortForecasts()
+}
+
+const sortForecasts = () => {
+  filteredForecasts.value.sort((a, b) => {
+    if (sortBy.value === 'aqi') return Number(b.aqi) - Number(a.aqi)
+    if (sortBy.value === 'area') return a.area.localeCompare(b.area)
+    return new Date(b.publishtime).getTime() - new Date(a.publishtime).getTime()
+  })
+}
+
+const averageAQI = computed(() => {
+  const total = filteredForecasts.value.reduce((sum, forecast) => sum + Number(forecast.aqi), 0)
+  return Math.round(total / filteredForecasts.value.length)
+})
+
+onMounted(fetchForecasts)
 </script>
 
 <style scoped>
