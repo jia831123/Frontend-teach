@@ -33,6 +33,11 @@ const router = createRouter({
           path: '/Emily',
           name: 'EmilyIndex2',
           component: () => import('@/views/Emily/index2.vue')
+        },
+        {
+          path: 'air-quality',
+          name: 'emilyAirQuality',
+          component: () => import('@/views/Emily/airQuality/index.vue')
         }
       ]
     },
