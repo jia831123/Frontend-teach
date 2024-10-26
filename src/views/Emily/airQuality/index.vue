@@ -9,7 +9,7 @@
           <option value="area">按地區排序</option>
           <option value="publishtime">按發布時間排序</option>
         </select>
-        <!-- 新增：选择显示数据笔数的下拉菜单 -->
+        <!-- 新增：選擇顯示數據筆數的下拉選單 -->
         <select v-model="selectedLimit" @change="updateForecasts">
     <option value="5">顯示 5 筆</option>
     <option value="10">顯示 10 筆</option>
