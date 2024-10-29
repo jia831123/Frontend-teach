@@ -3,40 +3,52 @@
     <div class="fixed-header">
       <h1 class="title">空氣品質預報</h1>
       <div class="controls">
-        <input v-model="searchQuery" placeholder="搜尋地區..." @input="filterForecasts" />
-        <select v-model="sortBy" @change="sortForecasts">
+        <!-- 將搜尋地區 input 改成下拉選單 -->
+        <select v-model="selectedArea" @change="filterForecasts">
+          <option value="">選擇地區...</option>
+          <option v-for="area in uniqueAreas" :key="area" :value="area">{{ area }}</option>
+        </select>
+
+        <!-- 排序下拉選單 -->
+        <select v-model="sortBy" @change="sortAndFilterForecasts">
           <option value="aqi">按 AQI 排序</option>
           <option value="area">按地區排序</option>
           <option value="publishtime">按發布時間排序</option>
         </select>
-        <!-- 新增：選擇顯示數據筆數的下拉選單 -->
+
+        <!-- 顯示數據筆數的下拉選單 -->
         <select v-model="selectedLimit" @change="updateForecasts">
-    <option value="5">顯示 5 筆</option>
-    <option value="10">顯示 10 筆</option>
-    <option value="100">顯示 100 筆</option>
+          <option value="5">顯示 5 筆</option>
+          <option value="10">顯示 10 筆</option>
+          <option value="50">顯示 50 筆</option>
         </select>
       </div>
     </div>
     <div class="content">
+      <div v-if="loading" class="loading-container">
+        <div class="spinner"></div>
+        <p>載入中，請稍候...</p>
+      </div>
+      <div v-else></div>
       <div>
         <div class="forecast-summary">
-          <p>共 {{ 0 }} 個地區，平均 AQI: {{ 0 }}</p>
+          <p>共 {{ filteredForecasts.length }} 個地區，平均 AQI: {{ averageAQI }}</p>
         </div>
         <transition-group name="forecast-list" tag="div" class="forecast-list">
-          <div v-for="forecast in forecasts" :key="forecast.publisshtime" class="forecast-card">
+          <div v-for="forecast in filteredForecasts" :key="forecast.publishtime" class="forecast-card"  :style="{ backgroundColor: areaColors[forecast.area] || '#FFFFFF' }">
             <h2 class="area">{{ forecast.area }}</h2>
             <div class="api good">
-              AQI: {{ 123 }}
-              <span class="aqi-label">{{ 123 }}</span>
+              AQI: {{ forecast.aqi }}
+              <span class="aqi-label">{{ forecast.aqi }}</span>
             </div>
             <div class="details">
-              <p><strong>主要污染物：</strong> {{ '無' }}</p>
-              <p><strong>狀態：</strong> {{ '無' }}</p>
-              <p><strong>發布時間：</strong> {{ '無' }}</p>
+              <p><strong>主要污染物：</strong> {{ forecast.mainPollutant || '無' }}</p>
+              <p><strong>狀態：</strong> {{ forecast.status || '無' }}</p>
+              <p><strong>發布時間：</strong> {{ forecast.publishtime || '無' }}</p>
             </div>
             <div class="health-effects">
               <h3>健康影響</h3>
-              <p>{{ '空氣品質令人滿意，基本無空氣污染。' }}</p>
+              <p>{{ forecast.healthEffects || '空氣品質令人滿意，基本無空氣污染。' }}</p>
             </div>
           </div>
         </transition-group>
@@ -46,31 +58,79 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { onMounted, ref, computed, watch } from 'vue'
 
 const forecasts = ref([])
-const searchQuery = ref('')
+const selectedArea = ref('')
 const sortBy = ref('aqi')
-const selectedLimit = ref(10) // 默认值为10
+const selectedLimit = ref(10) // 默认显示10条数据
+const loading = ref(false)
+
+const areaColors = {
+  "宜蘭": "#e0f7fa",
+  "花東": "#ffebee",
+  "高屏": "#e8f5e9",
+  "澎湖": "#fff3e0",
+  "金門": "#f3e5f5",
+  "馬祖": "#80FFFF",
+  "中部": "#C06060",
+  "竹苗": "#FFB2B2",
+  "雲嘉南": "#C0E0E0",
+  "北部": "#40A040",
+  // 添加其他地區顏色
+}
+
+// 获取所有唯一的地区选项
+const uniqueAreas = computed(() => {
+  return [...new Set(forecasts.value.map(forecast => forecast.area))]
+})
+
+// 计算过滤后的数据
+const filteredForecasts = computed(() => {
+  let filtered = forecasts.value
+  // 过滤地区
+  if (selectedArea.value) {
+    filtered = filtered.filter(forecast => forecast.area === selectedArea.value)
+  }
+  // 应用排序
+  if (sortBy.value === 'aqi') {
+    filtered.sort((a, b) => a.aqi - b.aqi)
+  } else if (sortBy.value === 'area') {
+    filtered.sort((a, b) => a.area.localeCompare(b.area))
+  } else if (sortBy.value === 'publishtime') {
+    filtered.sort((a, b) => new Date(a.publishtime).getTime() - new Date(b.publishtime).getTime())
+  }
+  return filtered
+})
+
+// 计算平均 AQI
+const averageAQI = computed(() => {
+  if (filteredForecasts.value.length === 0) return 0
+  const total = filteredForecasts.value.reduce((sum, forecast) => sum + (forecast.aqi || 0), 0)
+  return Math.round(total / filteredForecasts.value.length)
+})
 
 const fetchForecasts = async () => {
+  loading.value = true // <-- 新增：開始加載
   try {
     const response = await fetch(
       `https://us-central1-delta-vial-435710-e5.cloudfunctions.net/function-1?limit=${selectedLimit.value}`
     )
     const data = await response.json()
     forecasts.value = data.records
-    console.log(data)
   } catch (err) {
     console.error(err)
+  } finally {
+    loading.value = false 
   }
 }
 
-// 监测 selectedLimit 变化
+// 监测 selectedLimit 的变化，自动刷新数据
 watch(selectedLimit, fetchForecasts)
 
-const updateForecasts = () => {
-  fetchForecasts()
+// 排序并过滤数据
+const sortAndFilterForecasts = () => {
+  // 调用计算属性 `filteredForecasts`，确保应用最新的排序和过滤条件
 }
 
 onMounted(fetchForecasts)
