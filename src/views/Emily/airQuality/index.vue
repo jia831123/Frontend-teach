@@ -3,20 +3,17 @@
     <div class="fixed-header">
       <h1 class="title">空氣品質預報</h1>
       <div class="controls">
-        <!-- 將搜尋地區 input 改成下拉選單 -->
         <select v-model="selectedArea" @change="filterForecasts">
           <option value="">選擇地區...</option>
           <option v-for="area in uniqueAreas" :key="area" :value="area">{{ area }}</option>
         </select>
 
-        <!-- 排序下拉選單 -->
         <select v-model="sortBy" @change="sortAndFilterForecasts">
           <option value="aqi">按 AQI 排序</option>
           <option value="area">按地區排序</option>
           <option value="publishtime">按發布時間排序</option>
         </select>
 
-        <!-- 顯示數據筆數的下拉選單 -->
         <select v-model="selectedLimit" @change="updateForecasts">
           <option value="5">顯示 5 筆</option>
           <option value="10">顯示 10 筆</option>
@@ -63,7 +60,7 @@ import { onMounted, ref, computed, watch } from 'vue'
 const forecasts = ref([])
 const selectedArea = ref('')
 const sortBy = ref('aqi')
-const selectedLimit = ref(10) // 默认显示10条数据
+const selectedLimit = ref(10) // 顯示10條數據
 const loading = ref(false)
 
 const areaColors = {
@@ -80,19 +77,19 @@ const areaColors = {
   // 添加其他地區顏色
 }
 
-// 获取所有唯一的地区选项
+// 獲取所有唯一的地區選項
 const uniqueAreas = computed(() => {
   return [...new Set(forecasts.value.map(forecast => forecast.area))]
 })
 
-// 计算过滤后的数据
+// 計算過濾後的數據
 const filteredForecasts = computed(() => {
   let filtered = forecasts.value
-  // 过滤地区
+  // 過濾地區
   if (selectedArea.value) {
     filtered = filtered.filter(forecast => forecast.area === selectedArea.value)
   }
-  // 应用排序
+  // 應用排序
   if (sortBy.value === 'aqi') {
     filtered.sort((a, b) => a.aqi - b.aqi)
   } else if (sortBy.value === 'area') {
@@ -103,7 +100,7 @@ const filteredForecasts = computed(() => {
   return filtered
 })
 
-// 计算平均 AQI
+// 計算平均 AQI
 const averageAQI = computed(() => {
   if (filteredForecasts.value.length === 0) return 0
   const total = filteredForecasts.value.reduce((sum, forecast) => sum + (forecast.aqi || 0), 0)
@@ -125,12 +122,12 @@ const fetchForecasts = async () => {
   }
 }
 
-// 监测 selectedLimit 的变化，自动刷新数据
+// 監測 selectedLimit 的變化，自動刷新數據
 watch(selectedLimit, fetchForecasts)
 
-// 排序并过滤数据
+// 排序並過濾數據
 const sortAndFilterForecasts = () => {
-  // 调用计算属性 `filteredForecasts`，确保应用最新的排序和过滤条件
+  // 調用計算屬性 `filteredForecasts`，
 }
 
 onMounted(fetchForecasts)
