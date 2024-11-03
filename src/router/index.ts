@@ -49,8 +49,13 @@ const router = createRouter({
           path: '/Sandy',
           name: 'SandyIndex',
           component: () => import('@/views/Sandy/index.vue')
+        },
+        {
+          path: 'Airquality',
+          name: 'SandyairQuality',
+          component: () => import('@/views/Sandy/airQuality/index.vue')
         }
-      ]
+        ]
     }
   ]
 })
